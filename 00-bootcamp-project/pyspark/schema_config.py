@@ -1,29 +1,32 @@
-# ============================================================
-# Greenery Pipeline - Shared Configuration
-# ============================================================
+from pathlib import Path
+
 
 PROJECT_ID = "dui-bootcamp"
 LOCATION = "asia-southeast1"
-
 BUCKET_NAME = "deb-bootcamp-033-dui"
 BUSINESS_DOMAIN = "greenery"
-
 BIGQUERY_DATASET = "deb_bootcamp"
 
+API_BASE_URL = "http://34.87.139.82:8000"
 
-# ============================================================
-# Table Configuration
-#
-# Data type convention:
-# STRING    -> Spark StringType     -> BigQuery STRING
-# INT64     -> Spark LongType       -> BigQuery INT64
-# FLOAT64   -> Spark DoubleType     -> BigQuery FLOAT64
-# TIMESTAMP -> Spark TimestampType  -> BigQuery TIMESTAMP
-# ============================================================
+DAGS_FOLDER = Path("/opt/airflow/dags")
+PYSPARK_FOLDER = Path("/opt/spark/pyspark")
+AIRFLOW_CONFIG_FOLDER = Path("/opt/airflow/config")
+
+GCS_KEYFILE = PYSPARK_FOLDER / "deb-load-data-to-gcs.json"
+BIGQUERY_KEYFILE = (
+    AIRFLOW_CONFIG_FOLDER
+    / "deb-loading-data-to-bigquery-secured.json"
+)
+TRANSFORMER_FILE = PYSPARK_FOLDER / "transformers.py"
+
+PARTITIONED_TABLES = {"events", "orders", "users"}
+
 
 TABLE_CONFIG = {
-
     "addresses": {
+        "api_path": "addresses",
+        "partitioned": False,
         "raw_path": "addresses/addresses.csv",
         "cleaned_path": "addresses/",
         "schema": [
@@ -34,10 +37,9 @@ TABLE_CONFIG = {
             ("country", "STRING"),
         ],
     },
-
     "events": {
-        "raw_path": "events/2021-02-10/events.csv",
-        "cleaned_path": "events/2021-02-10/",
+        "api_path": "events",
+        "partitioned": True,
         "schema": [
             ("event_id", "STRING"),
             ("session_id", "STRING"),
@@ -49,8 +51,9 @@ TABLE_CONFIG = {
             ("product", "STRING"),
         ],
     },
-
     "order_items": {
+        "api_path": "order-items",
+        "partitioned": False,
         "raw_path": "order_items/order_items.csv",
         "cleaned_path": "order_items/",
         "schema": [
@@ -59,10 +62,9 @@ TABLE_CONFIG = {
             ("quantity", "INT64"),
         ],
     },
-
     "orders": {
-        "raw_path": "orders/2021-02-10/orders.csv",
-        "cleaned_path": "orders/2021-02-10/",
+        "api_path": "orders",
+        "partitioned": True,
         "schema": [
             ("order_id", "STRING"),
             ("created_at", "TIMESTAMP"),
@@ -79,8 +81,9 @@ TABLE_CONFIG = {
             ("address", "STRING"),
         ],
     },
-
     "products": {
+        "api_path": "products",
+        "partitioned": False,
         "raw_path": "products/products.csv",
         "cleaned_path": "products/",
         "schema": [
@@ -90,8 +93,9 @@ TABLE_CONFIG = {
             ("inventory", "INT64"),
         ],
     },
-
     "promos": {
+        "api_path": "promos",
+        "partitioned": False,
         "raw_path": "promos/promos.csv",
         "cleaned_path": "promos/",
         "schema": [
@@ -100,10 +104,9 @@ TABLE_CONFIG = {
             ("status", "STRING"),
         ],
     },
-
     "users": {
-        "raw_path": "users/2020-10-23/users.csv",
-        "cleaned_path": "users/2020-10-23/",
+        "api_path": "users",
+        "partitioned": True,
         "schema": [
             ("user_id", "STRING"),
             ("first_name", "STRING"),
