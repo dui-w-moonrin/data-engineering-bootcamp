@@ -40,20 +40,30 @@ TABLE_CONFIG = {
     "events": {
         "api_path": "events",
         "partitioned": True,
+        "partition_field": "created_at",
+        "source_fields": {
+            "user_id": "user",
+            "order_id": "order",
+            "product_id": "product",
+        },
         "schema": [
             ("event_id", "STRING"),
             ("session_id", "STRING"),
             ("page_url", "STRING"),
             ("created_at", "TIMESTAMP"),
             ("event_type", "STRING"),
-            ("user", "STRING"),
-            ("order", "STRING"),
-            ("product", "STRING"),
+            ("user_id", "STRING"),
+            ("order_id", "STRING"),
+            ("product_id", "STRING"),
         ],
     },
     "order_items": {
         "api_path": "order-items",
         "partitioned": False,
+        "source_fields": {
+            "order_id": "order",
+            "product_id": "product",
+        },
         "raw_path": "order_items/order_items.csv",
         "cleaned_path": "order_items/",
         "schema": [
@@ -65,6 +75,12 @@ TABLE_CONFIG = {
     "orders": {
         "api_path": "orders",
         "partitioned": True,
+        "partition_field": "created_at",
+        "source_fields": {
+            "user_id": "user",
+            "promo_id": "promo",
+            "address_id": "address",
+        },
         "schema": [
             ("order_id", "STRING"),
             ("created_at", "TIMESTAMP"),
@@ -76,9 +92,9 @@ TABLE_CONFIG = {
             ("estimated_delivery_at", "TIMESTAMP"),
             ("delivered_at", "TIMESTAMP"),
             ("status", "STRING"),
-            ("user", "STRING"),
-            ("promo", "STRING"),
-            ("address", "STRING"),
+            ("user_id", "STRING"),
+            ("promo_id", "STRING"),
+            ("address_id", "STRING"),
         ],
     },
     "products": {
@@ -107,6 +123,10 @@ TABLE_CONFIG = {
     "users": {
         "api_path": "users",
         "partitioned": True,
+        "partition_field": "created_at",
+        "source_fields": {
+            "address_id": "address",
+        },
         "schema": [
             ("user_id", "STRING"),
             ("first_name", "STRING"),
@@ -115,7 +135,7 @@ TABLE_CONFIG = {
             ("phone_number", "STRING"),
             ("created_at", "TIMESTAMP"),
             ("updated_at", "TIMESTAMP"),
-            ("address", "STRING"),
+            ("address_id", "STRING"),
         ],
     },
 }
