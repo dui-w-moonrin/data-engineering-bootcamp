@@ -194,3 +194,11 @@ data/
 
 # DEB dataengineercafe keyfiles
 dataengineercafe-*.json
+
+# Personal GCP credentials
+deb-load-data-to-gcs.json
+deb-loading-data-to-bigquery-secured.json
+deb-loading-data-to-bigquery.json
+
+# Airflow runtime extracted files
+00-bootcampt-project/dags/*.csv
