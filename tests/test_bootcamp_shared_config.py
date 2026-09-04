@@ -41,6 +41,46 @@ def test_table_metadata_centralizes_api_paths_and_partitioning():
 
     for table_name in config.PARTITIONED_TABLES:
         assert config.TABLE_CONFIG[table_name]["partitioned"] is True
+        assert config.TABLE_CONFIG[table_name]["partition_field"] == "created_at"
 
     for table_name in {"addresses", "order_items", "products", "promos"}:
         assert config.TABLE_CONFIG[table_name]["partitioned"] is False
+
+
+def test_api_source_fields_map_to_canonical_output_columns():
+    config = load_config()
+
+    expected_mappings = {
+        "order_items": {
+            "order_id": "order",
+            "product_id": "product",
+        },
+        "events": {
+            "user_id": "user",
+            "order_id": "order",
+            "product_id": "product",
+        },
+        "orders": {
+            "user_id": "user",
+            "promo_id": "promo",
+            "address_id": "address",
+        },
+        "users": {
+            "address_id": "address",
+        },
+    }
+
+    for table_name, expected in expected_mappings.items():
+        assert config.TABLE_CONFIG[table_name]["source_fields"] == expected
+
+    assert [name for name, _ in config.TABLE_CONFIG["events"]["schema"]][-3:] == [
+        "user_id",
+        "order_id",
+        "product_id",
+    ]
+    assert [name for name, _ in config.TABLE_CONFIG["orders"]["schema"]][-3:] == [
+        "user_id",
+        "promo_id",
+        "address_id",
+    ]
+    assert config.TABLE_CONFIG["users"]["schema"][-1][0] == "address_id"
