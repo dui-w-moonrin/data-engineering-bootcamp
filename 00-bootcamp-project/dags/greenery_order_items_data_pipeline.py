@@ -36,13 +36,19 @@ def _extract_data():
     response.raise_for_status()
     records = response.json()
     columns = [name for name, _ in TABLE["schema"]]
+    source_fields = TABLE.get("source_fields", {})
     output_file = DAGS_FOLDER / f"{DATA}.csv"
 
     with open(output_file, "w", newline="", encoding="utf-8") as f:
         writer = csv.DictWriter(f, fieldnames=columns)
         writer.writeheader()
         for record in records:
-            writer.writerow({column: record.get(column) for column in columns})
+            writer.writerow(
+                {
+                    column: record.get(source_fields.get(column, column))
+                    for column in columns
+                }
+            )
 
     print(f"Extracted {len(records)} rows -> {output_file}")
 
