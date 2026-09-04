@@ -5,9 +5,9 @@ from datetime import datetime, timezone
 
 import requests
 from airflow import DAG
-from airflow.exceptions import AirflowSkipException
 from airflow.providers.apache.spark.operators.spark_submit import SparkSubmitOperator
-from airflow.providers.standard.operators.python import PythonOperator
+from airflow.providers.standard.operators.empty import EmptyOperator
+from airflow.providers.standard.operators.python import BranchPythonOperator, PythonOperator
 from google.cloud import bigquery, storage
 from google.oauth2 import service_account
 
@@ -30,28 +30,40 @@ from schema_config import (
 DATA = "orders"
 TABLE = TABLE_CONFIG[DATA]
 API_URL = f"{API_BASE_URL}/{TABLE['api_path']}/"
-FIRST_DATE = "2021-02-10"
 
 
 def _extract_data(ds):
     response = requests.get(API_URL, params={"created_at": ds}, timeout=60)
     response.raise_for_status()
     records = response.json()
+
     if not records:
-        raise AirflowSkipException(f"No {DATA} data found for {ds}")
+        print(f"No {DATA} data found for {ds}")
+        return "do_nothing"
 
     columns = [name for name, _ in TABLE["schema"]]
+    source_fields = TABLE.get("source_fields", {})
     output_file = DAGS_FOLDER / f"{DATA}-{ds}.csv"
+
     with open(output_file, "w", newline="", encoding="utf-8") as f:
         writer = csv.DictWriter(f, fieldnames=columns)
         writer.writeheader()
         for record in records:
-            writer.writerow({column: record.get(column) for column in columns})
+            writer.writerow(
+                {
+                    column: record.get(source_fields.get(column, column))
+                    for column in columns
+                }
+            )
+
+    print(f"Extracted {len(records)} rows for {ds} -> {output_file}")
+    return "load_data_to_gcs"
 
 
 def _load_data_to_gcs(ds):
     with open(GCS_KEYFILE, "r", encoding="utf-8") as f:
         credentials = service_account.Credentials.from_service_account_info(json.load(f))
+
     client = storage.Client(project=PROJECT_ID, credentials=credentials)
     destination = f"raw/{BUSINESS_DOMAIN}/{DATA}/{ds}/{DATA}.csv"
     client.bucket(BUCKET_NAME).blob(destination).upload_from_filename(
@@ -62,34 +74,46 @@ def _load_data_to_gcs(ds):
 def _load_data_from_gcs_to_bigquery(ds):
     with open(BIGQUERY_KEYFILE, "r", encoding="utf-8") as f:
         credentials = service_account.Credentials.from_service_account_info(json.load(f))
+
     client = bigquery.Client(project=PROJECT_ID, credentials=credentials, location=LOCATION)
     source = f"gs://{BUCKET_NAME}/cleaned/{BUSINESS_DOMAIN}/{DATA}/{ds}/*.parquet"
-    table_id = f"{PROJECT_ID}.{BIGQUERY_DATASET}.{DATA}"
+    partition = ds.replace("-", "")
+    table_id = f"{PROJECT_ID}.{BIGQUERY_DATASET}.{DATA}${partition}"
     schema = [bigquery.SchemaField(name, dtype) for name, dtype in TABLE["schema"]]
-    disposition = (
-        bigquery.WriteDisposition.WRITE_TRUNCATE
-        if ds == FIRST_DATE
-        else bigquery.WriteDisposition.WRITE_APPEND
-    )
     config = bigquery.LoadJobConfig(
         source_format=bigquery.SourceFormat.PARQUET,
-        write_disposition=disposition,
+        write_disposition=bigquery.WriteDisposition.WRITE_TRUNCATE,
         schema=schema,
+        time_partitioning=bigquery.TimePartitioning(
+            type_=bigquery.TimePartitioningType.DAY,
+            field=TABLE["partition_field"],
+        ),
     )
-    client.load_table_from_uri(source, table_id, job_config=config, location=LOCATION).result()
+    client.load_table_from_uri(
+        source,
+        table_id,
+        job_config=config,
+        location=LOCATION,
+    ).result()
 
 
 with DAG(
     dag_id="greenery_orders_data_pipeline",
-    start_date=datetime(2021, 2, 10, tzinfo=timezone.utc),
-    end_date=datetime(2021, 2, 11, tzinfo=timezone.utc),
+    start_date=datetime(2021, 2, 9, tzinfo=timezone.utc),
     schedule="@daily",
-    catchup=True,
+    catchup=False,
     max_active_runs=1,
     tags=["DEB", "Skooldio", "greenery", "orders"],
 ) as dag:
-    extract_data = PythonOperator(task_id="extract_data", python_callable=_extract_data)
-    load_data_to_gcs = PythonOperator(task_id="load_data_to_gcs", python_callable=_load_data_to_gcs)
+    extract_data = BranchPythonOperator(
+        task_id="extract_data",
+        python_callable=_extract_data,
+    )
+    do_nothing = EmptyOperator(task_id="do_nothing")
+    load_data_to_gcs = PythonOperator(
+        task_id="load_data_to_gcs",
+        python_callable=_load_data_to_gcs,
+    )
     transform_data = SparkSubmitOperator(
         task_id="transform_data",
         application=str(TRANSFORMER_FILE),
@@ -102,4 +126,7 @@ with DAG(
         task_id="load_data_from_gcs_to_bigquery",
         python_callable=_load_data_from_gcs_to_bigquery,
     )
-    extract_data >> load_data_to_gcs >> transform_data >> load_data_from_gcs_to_bigquery
+    end = EmptyOperator(task_id="end", trigger_rule="one_success")
+
+    extract_data >> load_data_to_gcs >> transform_data >> load_data_from_gcs_to_bigquery >> end
+    extract_data >> do_nothing >> end
