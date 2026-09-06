@@ -28,7 +28,7 @@ models:
   - name: stg_greenery__events
     description: Greenery events
     columns:
-      - name: event_id
+      - name: event_guid
         description: Event ID
         data_tests:
           - not_null
@@ -40,17 +40,17 @@ models:
         data_tests:
           - accepted_values:
               values: ['page_view', 'add_to_cart', 'checkout', 'package_shipped']
-      - name: session_id
+      - name: session_guid
         description: Session ID
-      - name: user_id
+      - name: user_guid
         description: User ID
       - name: page_url  
         description: Page URL
-      - name: created_at
+      - name: event_created_at_utc
         description: Created At
-      - name: order_id
+      - name: order_guid
         description: Order ID
-      - name: product_id
+      - name: product_guid
         description: Product ID
 
   - name: stg_greenery__addresses
