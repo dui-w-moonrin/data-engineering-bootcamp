@@ -1,0 +1,76 @@
+version: 2
+
+models:
+
+  - name: stg_greenery__users
+    description: Staging models for Greenery users
+    columns:
+      - name: user_guid
+        description: User ID
+        data_tests:
+          - not_null
+          - unique
+      - name: first_name
+        description: First Name
+      - name: last_name
+        description: Last Name
+      - name: email
+        description: Email Address
+      - name: phone_number
+        description: Phone Number
+      - name: created_at_utc
+        description: Created At
+      - name: updated_at_utc
+        description: Updated At
+      - name: address_id
+        description: Address ID
+
+  - name: stg_greenery__events
+    description: Greenery events
+    columns:
+      - name: event_id
+        description: Event ID
+        data_tests:
+          - not_null
+          - unique
+          - dbt_expectations.expect_column_to_exist
+          - dbt_expectations.expect_column_values_to_be_unique
+      - name: event_type
+        description: Event Type
+        data_tests:
+          - accepted_values:
+              values: ['page_view', 'add_to_cart', 'checkout', 'package_shipped']
+      - name: session_id
+        description: Session ID
+      - name: user_id
+        description: User ID
+      - name: page_url  
+        description: Page URL
+      - name: created_at
+        description: Created At
+      - name: order_id
+        description: Order ID
+      - name: product_id
+        description: Product ID
+
+  - name: stg_greenery__addresses
+    description: Greenery addresses
+    columns:
+      - name: address_guid
+        description: Address ID
+        data_tests:
+          - not_null
+          - unique
+      - name: address
+        description: address
+      - name: zipcode
+        description: zipcode
+      - name: state
+        description: State
+      - name: country
+        description: Country
+
+  - name: stg_greenery__orders
+    description: Greenery orders
+
+        
